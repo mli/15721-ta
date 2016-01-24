@@ -58,7 +58,9 @@ std::vector<planner::MergeJoinPlan::JoinClause> CreateJoinClauses() {
 
 std::vector<PlanNodeType> join_algorithms = {
     PLAN_NODE_TYPE_NESTLOOP,
-    PLAN_NODE_TYPE_HASHJOIN
+    PLAN_NODE_TYPE_MERGEJOIN,
+// TODO: Uncomment this
+//    PLAN_NODE_TYPE_HASHJOIN
 };
 
 std::vector<PelotonJoinType> join_types = {
@@ -73,58 +75,33 @@ void ExecuteJoinTest(PlanNodeType join_algorithm, PelotonJoinType join_type, oid
 oid_t CountTuplesWithNullFields(executor::LogicalTile *logical_tile);
 
 enum JOIN_TEST_TYPE {
-  BASIC_TEST = 0,
-  BOTH_TABLES_EMPTY = 1,
-  COMPLICATED_TEST = 2
+  BASIC_TEST = 0
 };
 
-TEST(JoinTests, BasicTest) {
+TEST(JoinTests, JoinPredicateTest) {
 
-  // Go over all join algorithms
-  for (auto join_algorithm : join_algorithms) {
-    std::cout << "JOIN ALGORITHM :: " << PlanNodeTypeToString(join_algorithm) << "\n";
-    // Execute the join test
-    ExecuteJoinTest(join_algorithm, JOIN_TYPE_INNER, BASIC_TEST);
-  }
+  oid_t join_test_types = 1;
 
-}
+  // Go over all join test types
+  for(oid_t join_test_type = 0 ;
+      join_test_type < join_test_types ;
+      join_test_type++) {
 
-TEST(JoinTests, EmptyTablesTest) {
+    std::cout << "JOIN TEST ------------------------ :: " << std::to_string(join_test_type) << "\n";
 
-  // Go over all join algorithms
-  for (auto join_algorithm : join_algorithms) {
-    std::cout << "JOIN ALGORITHM :: " << PlanNodeTypeToString(join_algorithm) << "\n";
-    ExecuteJoinTest(join_algorithm, JOIN_TYPE_INNER, BOTH_TABLES_EMPTY);
-  }
+    // Go over all join algorithms
+    for (auto join_algorithm : join_algorithms) {
+      std::cout << "JOIN ALGORITHM :: " << PlanNodeTypeToString(join_algorithm) << "\n";
 
-}
+      // Go over all join types
+      for (auto join_type : join_types) {
+        std::cout << "JOIN TYPE :: " << join_type << "\n";
 
-TEST(JoinTests, JoinTypesTest) {
-
-  // Go over all join algorithms
-  for (auto join_algorithm : join_algorithms) {
-    std::cout << "JOIN ALGORITHM :: " << PlanNodeTypeToString(join_algorithm) << "\n";
-    // Go over all join types
-    for (auto join_type : join_types) {
-      std::cout << "JOIN TYPE :: " << join_type << "\n";
-      // Execute the join test
-      ExecuteJoinTest(join_algorithm, join_type, BASIC_TEST);
+        // Execute the join test
+        ExecuteJoinTest(join_algorithm, join_type, join_test_type);
+      }
     }
-  }
 
-}
-
-TEST(JoinTests, ComplicatedTest) {
-
-  // Go over all join algorithms
-  for (auto join_algorithm : join_algorithms) {
-    std::cout << "JOIN ALGORITHM :: " << PlanNodeTypeToString(join_algorithm) << "\n";
-    // Go over all join types
-    for (auto join_type : join_types) {
-      std::cout << "JOIN TYPE :: " << join_type << "\n";
-      // Execute the join test
-      ExecuteJoinTest(join_algorithm, join_type, COMPLICATED_TEST);
-    }
   }
 
 }
@@ -155,33 +132,6 @@ void ExecuteJoinTest(PlanNodeType join_algorithm, PelotonJoinType join_type, oid
       right_table.get(), tile_group_size * right_table_tile_group_count, false,
       false, false);
 
-  if(join_test_type == COMPLICATED_TEST) {
-
-    // Modify some values in left and right tables for complicated test
-    auto left_source_tile = left_table->GetTileGroup(2)->GetTile(0);
-    auto right_dest_tile = right_table->GetTileGroup(1)->GetTile(0);
-    auto right_source_tile = left_table->GetTileGroup(0)->GetTile(0);
-
-    auto source_tile_tuple_count = left_source_tile->GetAllocatedTupleCount();
-    auto source_tile_column_count = left_source_tile->GetColumnCount();
-
-    // LEFT - 3 rd tile --> RIGHT - 2 nd tile
-    for(oid_t tuple_itr = 3; tuple_itr < source_tile_tuple_count ; tuple_itr++) {
-      for(oid_t col_itr = 0; col_itr < source_tile_column_count; col_itr++) {
-        right_dest_tile->SetValue(left_source_tile->GetValue(tuple_itr, col_itr), tuple_itr, col_itr);
-      }
-    }
-
-    // RIGHT - 1 st tile --> RIGHT - 2 nd tile
-    // RIGHT - 2 nd tile --> RIGHT - 2 nd tile
-    for(oid_t col_itr = 0; col_itr < source_tile_column_count; col_itr++) {
-      right_dest_tile->SetValue(right_source_tile->GetValue(4, col_itr), 0, col_itr);
-      right_dest_tile->SetValue(right_dest_tile->GetValue(3, col_itr), 2, col_itr);
-
-    }
-
-  }
-
   //std::cout << (*left_table);
 
   //std::cout << (*right_table);
@@ -209,28 +159,18 @@ void ExecuteJoinTest(PlanNodeType join_algorithm, PelotonJoinType join_type, oid
   // Setup left table
   //===--------------------------------------------------------------------===//
 
-  if(join_test_type == BASIC_TEST || join_test_type == COMPLICATED_TEST) {
+  if(join_test_type == BASIC_TEST) {
 
     EXPECT_CALL(left_table_scan_executor, DExecute())
-            .WillOnce(Return(true))
-            .WillOnce(Return(true))
-            .WillOnce(Return(true))
-            .WillOnce(Return(false));
+        .WillOnce(Return(true))
+        .WillOnce(Return(true))
+        .WillOnce(Return(true))
+        .WillOnce(Return(false));
 
     EXPECT_CALL(left_table_scan_executor, GetOutput())
-    .WillOnce(Return(left_table_logical_tile1.release()))
-    .WillOnce(Return(left_table_logical_tile2.release()))
-    .WillOnce(Return(left_table_logical_tile3.release()));
-
-  }
-  else if(join_test_type == BOTH_TABLES_EMPTY) {
-
-    if(join_algorithm != PLAN_NODE_TYPE_NESTLOOP && join_algorithm != PLAN_NODE_TYPE_HASHJOIN) {
-
-      EXPECT_CALL(left_table_scan_executor, DExecute())
-              .WillOnce(Return(false));
-
-    }
+        .WillOnce(Return(left_table_logical_tile1.release()))
+        .WillOnce(Return(left_table_logical_tile2.release()))
+        .WillOnce(Return(left_table_logical_tile3.release()));
 
   }
 
@@ -242,22 +182,16 @@ void ExecuteJoinTest(PlanNodeType join_algorithm, PelotonJoinType join_type, oid
   // Setup right table
   //===--------------------------------------------------------------------===//
 
-  if(join_test_type == BASIC_TEST || join_test_type == COMPLICATED_TEST) {
+  if(join_test_type == BASIC_TEST) {
 
     EXPECT_CALL(right_table_scan_executor, DExecute())
-             .WillOnce(Return(true))
-             .WillOnce(Return(true))
-             .WillOnce(Return(false));
+         .WillOnce(Return(true))
+         .WillOnce(Return(true))
+         .WillOnce(Return(false));
 
-    EXPECT_CALL(right_table_scan_executor, GetOutput())
-    .WillOnce(Return(right_table_logical_tile1.release()))
-    .WillOnce(Return(right_table_logical_tile2.release()));
-
-  }
-  else if(join_test_type == BOTH_TABLES_EMPTY) {
-
-    EXPECT_CALL(right_table_scan_executor, DExecute())
-              .WillOnce(Return(false));
+     EXPECT_CALL(right_table_scan_executor, GetOutput())
+         .WillOnce(Return(right_table_logical_tile1.release()))
+         .WillOnce(Return(right_table_logical_tile2.release()));
 
   }
 
@@ -343,7 +277,7 @@ void ExecuteJoinTest(PlanNodeType join_algorithm, PelotonJoinType join_type, oid
           new expression::TupleValueExpression(1, 1);
 
       std::vector<std::unique_ptr<const expression::AbstractExpression> >
-      hash_keys;
+          hash_keys;
       hash_keys.emplace_back(right_table_attr_1);
 
       // Create hash plan node
@@ -376,7 +310,7 @@ void ExecuteJoinTest(PlanNodeType join_algorithm, PelotonJoinType join_type, oid
           result_tuple_count += result_logical_tile->GetTupleCount();
           tuples_with_null +=
               CountTuplesWithNullFields(result_logical_tile.get());
-          std::cout << (*result_logical_tile);
+          // std::cout << (*result_logical_tile);
         }
       }
 
@@ -414,66 +348,6 @@ void ExecuteJoinTest(PlanNodeType join_algorithm, PelotonJoinType join_type, oid
       case JOIN_TYPE_OUTER:
         EXPECT_EQ(result_tuple_count, 15);
         EXPECT_EQ(tuples_with_null, 5);
-        break;
-
-      default:
-        throw Exception("Unsupported join type : " + std::to_string(join_type));
-        break;
-    }
-
-  }
-  else if(join_test_type == BOTH_TABLES_EMPTY) {
-
-    // Check output
-    switch (join_type) {
-      case JOIN_TYPE_INNER:
-        EXPECT_EQ(result_tuple_count, 0);
-        EXPECT_EQ(tuples_with_null, 0);
-        break;
-
-      case JOIN_TYPE_LEFT:
-        EXPECT_EQ(result_tuple_count, 0);
-        EXPECT_EQ(tuples_with_null, 0);
-        break;
-
-      case JOIN_TYPE_RIGHT:
-        EXPECT_EQ(result_tuple_count, 0);
-        EXPECT_EQ(tuples_with_null, 0);
-        break;
-
-      case JOIN_TYPE_OUTER:
-        EXPECT_EQ(result_tuple_count, 0);
-        EXPECT_EQ(tuples_with_null, 0);
-        break;
-
-      default:
-        throw Exception("Unsupported join type : " + std::to_string(join_type));
-        break;
-    }
-
-  }
-  else if(join_test_type == COMPLICATED_TEST) {
-
-    // Check output
-    switch (join_type) {
-      case JOIN_TYPE_INNER:
-        EXPECT_EQ(result_tuple_count, 10);
-        EXPECT_EQ(tuples_with_null, 0);
-        break;
-
-      case JOIN_TYPE_LEFT:
-        EXPECT_EQ(result_tuple_count, 17);
-        EXPECT_EQ(tuples_with_null, 7);
-        break;
-
-      case JOIN_TYPE_RIGHT:
-        EXPECT_EQ(result_tuple_count, 10);
-        EXPECT_EQ(tuples_with_null, 0);
-        break;
-
-      case JOIN_TYPE_OUTER:
-        EXPECT_EQ(result_tuple_count, 17);
-        EXPECT_EQ(tuples_with_null, 7);
         break;
 
       default:
