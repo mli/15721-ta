@@ -3,8 +3,8 @@
 # set -x
 email=1
 my_dir=`pwd`/`dirname $0`
-# handin_dir=/afs/cs/academic/class/15721-s16/autolab/project1/handin/
-handin_dir=/tmp
+handin_dir=/afs/cs/academic/class/15721-s16/autolab/project1/handin/
+# handin_dir=/tmp
 
 for file in $handin_dir/*.cpp; do
     # check
@@ -63,5 +63,4 @@ for file in $handin_dir/*.cpp; do
         ssh -p 1332 cmu15721@fw.cmcl.cs.cmu.edu 15721-ta/sendmail.sh \
             $andrew $res `basename $log` "15721: Submission $id results for Project 1"
     fi
-
 done
