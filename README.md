@@ -36,6 +36,8 @@ If every goes well, the last a few lines of the output should look like as follo
 
 ### For TA usage
 
-1. run the batch check job, which grades all handins
+Run the testing deamon, which automatically builds every new submission and emails back the results. 
 
-2. run incremental check job, which will grade new handins every 5min
+```bash
+nohup proj1/deamon.sh &
+```
