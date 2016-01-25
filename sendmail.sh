@@ -1,6 +1,5 @@
 #!/bin/bash
 
-set -x
 email=$1
 shift
 body=$1
@@ -9,4 +8,4 @@ log=$1
 shift
 title=$@
 
-mail -s "$title" $email -a $log <$body
+mail -s "$title" -a $log $email <$body
