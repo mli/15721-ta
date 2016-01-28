@@ -23,40 +23,48 @@ for file in $handin_dir/*.cpp; do
         `basename $file` 2>>$log 1>>$log
     echo "log is available at $log"
 
-    # results
-    res=results
-    rm -rf $res
 
-    style=`grep "^<" $log | wc -l`
-    if [ $style -eq 0 ]; then
-        r="style check: pass"
-    else
-        r="style check: fail"
-    fi
-    echo $r >>$res
+    res=results && rm -rf $res
 
-
-    unittest=`grep "\[  PASSED  \] 4 tests" $log | wc -l`
-    if [ $unittest -eq 1 ]; then
-        r="join test: pass"
-    else
-        r="join test: fail"
-    fi
-    echo $r >>$res
-
+    legal=`grep GetHashTable $file | wc -l`
     leak=`grep "ERROR SUMMARY: 0 errors from 0 contexts" $log | wc -l`
-    if [ $leak -eq 1 ]; then
-        r="leak test: pass"
-    else
-        r="leak test: fail"
-    fi
-    echo $r >>$res
-    cat $res
+    style=`grep "^<" $log | wc -l`
 
-    echo "" >>$res
-    echo "the log is attached." >>$res
-    echo "" >>$res
-    echo "ps: my apologies if you received this email multiple times:)" >>$res
+    t1=`grep "\[       OK \] JoinTests.BasicTest" | wc -l`
+    t2=`grep "\[       OK \] JoinTests.EmptyTablesTest" | wc -l`
+    t3=`grep "\[       OK \] JoinTests.JoinTypesTest" | wc -l`
+    t4=`grep "\[       OK \] JoinTests.ComplicatedTest" | wc -l`
+
+    if [ $legal -eq 0 ]; then
+        echo "you need to implement based on GetHashTable" >>$res
+        echo "$andrew,0,0" >>scores
+    elif [ $leak -eq 0 ]; then
+        echo "failed leak check" >>$res
+        echo "$andrew,0,0" >>scores
+    else
+        if [ $style -eq 0 ]; then
+            style=10
+        else
+            style=0
+        fi
+        test=0
+        if [ $t1 -eq  1 ]; then
+            test+=5
+        fi
+        if [ $t2 -eq  1 ]; then
+            test+=10
+        fi
+        if [ $t3 -eq  1 ]; then
+            test+=10
+        fi
+        if [ $t4 -eq  1 ]; then
+            test+=15
+        fi
+
+        echo "style check score: $style / 10" >>$res
+        echo "join test score: $test / 40" >>$res
+        echo "$andrew,$test,$style" >>scores
+    fi
 
     if [ $email -ne 0 ]; then
         scp -P 1332 $res $log cmu15721@fw.cmcl.cs.cmu.edu:~/

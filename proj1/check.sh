@@ -13,7 +13,8 @@ docker run -v $my_dir:$handin_dir muli/peloton:proj1 \
     /bin/bash -c " \
      cp $handin_dir/hash_join_executor.cpp $peloton_dir/src/backend/executor/ && \
      cp $handin_dir/join_test.cpp $peloton_dir/tests/executor/ && \
-     cd $peloton_dir/build && make && cd tests && make check-build && \
+     cd $peloton_dir && git pull && \
+     cd $peloton_dir/build && make -j4 && cd tests && make check-build -j4 && \
      valgrind --leak-check=yes --trace-children=yes --track-origins=yes ./join_test" \
     | tee join_test.log
 
